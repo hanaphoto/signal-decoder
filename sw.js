@@ -1,4 +1,4 @@
-const CACHE = "signal-decoder-v1";
+const CACHE = "signal-decoder-v2";
 const FILES = ["./", "./index.html", "./manual.html", "./icon.svg", "./manifest.webmanifest"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

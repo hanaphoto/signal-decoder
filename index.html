@@ -56,6 +56,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:36px}
 .keybtn.light.on{background:#ffd76a;box-shadow:0 0 32px #ffd76a88}
 .note{font-size:13px;color:var(--muted)}
 .warn{color:var(--bad);font-weight:600}
+.media{width:100%;border-radius:10px;background:#000;display:block}
+canvas.wave{width:100%;height:84px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;display:block}
+input[type=file]{width:100%;color:var(--muted);font-size:14px;padding:8px 0}
+select{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:9px;font-size:15px;min-height:44px}
 .sosflag{display:none;background:#5a1620;border:1px solid var(--bad);color:#ffd7d7;border-radius:10px;padding:8px 12px;font-weight:700;margin:6px 0}
 .sosflag.show{display:block}
 .pads{display:flex;gap:12px;justify-content:space-between}
@@ -145,6 +149,27 @@ details.hist li{font-size:14px}
     <input type="range" id="morseWpm" min="5" max="30" step="1" value="15">
     <div class="subresult" id="morseEncodeOut"></div>
   </div>
+
+  <div class="card">
+    <h2>音声・動画の音から解読</h2>
+    <p class="note">モールス音の入った音声ファイル／動画ファイルを読み込み、音量の波形から自動で解読します。ファイルは端末内だけで処理し、外部送信しません。</p>
+    <input type="file" id="audFile" accept="audio/*,video/*">
+    <video class="media" id="audPreview" controls playsinline style="max-height:220px"></video>
+    <div class="row" style="margin-top:8px">
+      <button class="act primary" id="audAnalyze">解析する（再生しながら計測）</button>
+      <button class="act danger" id="audStop">停止</button>
+    </div>
+    <div class="subresult" id="audStatus">ファイルを選んでください</div>
+    <canvas class="wave" id="audWave" width="680" height="84"></canvas>
+    <label class="lbl">音量の閾値: <span id="audThrVal">-</span>（波形を見ながら調整すると再解読します）</label>
+    <input type="range" id="audThr" min="1" max="100" step="1" value="30">
+    <div class="row">
+      <label class="note"><input type="checkbox" id="audUnitAuto" checked> 単位時間を自動推定</label>
+      <span class="note" id="audUnitInfo"></span>
+    </div>
+    <label class="lbl">単位時間（手動）: <span id="audUnitVal">100ms</span></label>
+    <input type="range" id="audUnit" min="30" max="400" step="5" value="100">
+  </div>
 </section>
 
 <!-- ============ FLASH ============ -->
@@ -170,10 +195,40 @@ details.hist li{font-size:14px}
 
   <div class="card">
     <h2>点滅を見ながら記録して解読</h2>
-    <button class="keybtn light" id="flashKey">光っている間、押し続ける<small>短い点滅＝短点／長い点滅＝長点として記録します<br>カメラ解読は準備中です。まずこのボタンで記録してください</small></button>
+    <button class="keybtn light" id="flashKey">光っている間、押し続ける<small>短い点滅＝短点／長い点滅＝長点として記録します<br>動画ファイルからの自動解読は下のカードでできます</small></button>
     <label class="lbl">基準の速さ（1単位）: <span id="flashUnitVal">200ms ≒ 6 WPM</span></label>
     <input type="range" id="flashUnit" min="60" max="400" step="10" value="200">
     <p class="note">発光信号は目で追うため、モールス（音）より遅い速度が実用です。相手の点滅リズムに合わせて調整してください。</p>
+  </div>
+
+  <div class="card">
+    <h2>動画から解読（発光）</h2>
+    <p class="note">点滅が映った動画ファイルを読み込み、明るさの変化から自動で解読します。動画は端末内だけで処理し、外部送信しません。光が小さい時は「計測する範囲」を光の周辺に合わせてください。</p>
+    <input type="file" id="vidFile" accept="video/*">
+    <video class="media" id="vidPreview" controls playsinline muted></video>
+    <label class="lbl">計測する範囲</label>
+    <select id="vidRoi">
+      <option value="center" selected>中央</option>
+      <option value="full">画面全体</option>
+      <option value="left">左半分</option>
+      <option value="right">右半分</option>
+      <option value="top">上半分</option>
+      <option value="bottom">下半分</option>
+    </select>
+    <div class="row" style="margin-top:8px">
+      <button class="act primary" id="vidAnalyze">解析する（再生しながら計測）</button>
+      <button class="act danger" id="vidStop">停止</button>
+    </div>
+    <div class="subresult" id="vidStatus">ファイルを選んでください</div>
+    <canvas class="wave" id="vidWave" width="680" height="84"></canvas>
+    <label class="lbl">明るさの閾値: <span id="vidThrVal">-</span>（波形を見ながら調整すると再解読します）</label>
+    <input type="range" id="vidThr" min="1" max="254" step="1" value="128">
+    <div class="row">
+      <label class="note"><input type="checkbox" id="vidUnitAuto" checked> 単位時間を自動推定</label>
+      <span class="note" id="vidUnitInfo"></span>
+    </div>
+    <label class="lbl">単位時間（手動）: <span id="vidUnitVal2">200ms</span></label>
+    <input type="range" id="vidUnit" min="40" max="500" step="10" value="200">
   </div>
 
   <div class="card">
@@ -471,8 +526,73 @@ function tebataEncode(text){
   }
   return out.join(" ");
 }
+/* ---------- Media series analysis (video light / audio) ---------- */
+/* series: [[tMs, value], ...] ascending. Returns ON/OFF run events. */
+function seriesToEvents(series, threshold, minRunMs){
+  if(!series || series.length < 2) return [];
+  // median sampling interval
+  const intervals = [];
+  for(let i=1;i<series.length;i++) intervals.push(series[i][0]-series[i-1][0]);
+  intervals.sort((a,b)=>a-b);
+  const step = intervals[Math.floor(intervals.length/2)] || 33;
+  let runs = [];
+  let curOn = series[0][1] >= threshold, start = series[0][0];
+  for(let i=1;i<series.length;i++){
+    const on = series[i][1] >= threshold;
+    if(on !== curOn){ runs.push([curOn ? "on" : "off", series[i][0]-start]); curOn = on; start = series[i][0]; }
+  }
+  runs.push([curOn ? "on" : "off", step]);
+  // glitch removal: drop runs shorter than minRunMs by merging neighbours
+  const minRun = minRunMs || 0;
+  if(minRun > 0){
+    let changed = true;
+    while(changed){
+      changed = false;
+      for(let i=0;i<runs.length;i++){
+        if(runs[i][1] < minRun && runs.length > 1){
+          if(i === 0){ runs[1][1] += runs[0][1]; runs.splice(0,1); }
+          else if(i === runs.length-1){ runs[i-1][1] += runs[i][1]; runs.splice(i,1); }
+          else { runs[i-1][1] += runs[i][1] + runs[i+1][1]; runs.splice(i,2); }
+          changed = true; break;
+        }
+      }
+    }
+    // merge adjacent same-kind runs that glitch removal may have created
+    const merged = [];
+    runs.forEach(r=>{ if(merged.length && merged[merged.length-1][0] === r[0]) merged[merged.length-1][1] += r[1]; else merged.push([r[0], r[1]]); });
+    runs = merged;
+  }
+  while(runs.length && runs[0][0] === "off") runs.shift();
+  while(runs.length && runs[runs.length-1][0] === "off") runs.pop();
+  return runs;
+}
+function estimateUnitFromEvents(events){
+  const ons = events.filter(e=>e[0]==="on").map(e=>e[1]);
+  if(!ons.length) return null;
+  const minOn = Math.min.apply(null, ons);
+  const dots = ons.filter(d=>d <= minOn * 1.7);
+  const dashes = ons.filter(d=>d > minOn * 1.7);
+  let unit = dots.reduce((a,b)=>a+b,0) / dots.length;
+  if(dashes.length){
+    const dashUnit = (dashes.reduce((a,b)=>a+b,0) / dashes.length) / 3;
+    if(dashUnit > unit * 0.6 && dashUnit < unit * 1.6) unit = (unit + dashUnit) / 2;
+  }
+  return Math.round(unit);
+}
+function decodeSeries(series, threshold, mode, unitOverride){
+  let events = seriesToEvents(series, threshold, 0);
+  let unit = unitOverride || estimateUnitFromEvents(events);
+  if(unit){
+    // remove glitches shorter than 40% of a unit, then re-estimate if auto
+    events = seriesToEvents(series, threshold, Math.max(10, unit * 0.4));
+    if(!unitOverride){ const u2 = estimateUnitFromEvents(events); if(u2) unit = u2; }
+  }
+  if(!events.length || !unit) return {events: events, unit: unit, text:"", sos:false, onCount:0};
+  const r = decodeTimingEvents(events, unit, mode);
+  return {events: events, unit: unit, text: r.text, sos: r.sos, onCount: events.filter(e=>e[0]==="on").length};
+}
 if(typeof module !== "undefined" && module.exports){
-  module.exports = {DATA, decodeMorseText, encodeMorseText, decodeTimingEvents, decodeSemaphorePair, semaphorePairForChar, tebataDecode, tebataCandidates, tebataEncode, normalizeMorseInput};
+  module.exports = {DATA, decodeMorseText, encodeMorseText, decodeTimingEvents, decodeSemaphorePair, semaphorePairForChar, tebataDecode, tebataCandidates, tebataEncode, normalizeMorseInput, seriesToEvents, estimateUnitFromEvents, decodeSeries};
 }
 </script>
 
@@ -827,6 +947,175 @@ $("tblSearch").addEventListener("input", renderTables);
 /* service worker */
 if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 histRender();
+</script>
+
+<script id="ui3">
+"use strict";
+/* ---------- shared waveform drawing ---------- */
+function drawWave(canvas, series, threshold, maxVal){
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  if(!series.length) return;
+  const tMax = series[series.length-1][0] || 1;
+  ctx.strokeStyle = "#33507a"; ctx.beginPath();
+  series.forEach((p,i)=>{
+    const x = p[0]/tMax * W, y = H - (p[1]/maxVal) * (H-8) - 4;
+    if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  const ty = H - (threshold/maxVal) * (H-8) - 4;
+  ctx.strokeStyle = "#ff6b6b"; ctx.beginPath(); ctx.moveTo(0,ty); ctx.lineTo(W,ty); ctx.stroke();
+}
+/* ---------- video light analysis ---------- */
+let lightSeries = [], lightSampling = false;
+const vidCanvas = document.createElement("canvas"); vidCanvas.width = 64; vidCanvas.height = 64;
+function roiRect(vw, vh, kind){
+  switch(kind){
+    case "full": return [0,0,vw,vh];
+    case "left": return [0,0,vw/2,vh];
+    case "right": return [vw/2,0,vw/2,vh];
+    case "top": return [0,0,vw,vh/2];
+    case "bottom": return [0,vh/2,vw,vh/2];
+    default: return [vw/4, vh/4, vw/2, vh/2];
+  }
+}
+function lightSample(tMs){
+  const v = $("vidPreview");
+  if(!v.videoWidth) return;
+  const ctx = vidCanvas.getContext("2d", {willReadFrequently:true});
+  const r = roiRect(v.videoWidth, v.videoHeight, $("vidRoi").value);
+  ctx.drawImage(v, r[0], r[1], r[2], r[3], 0, 0, 64, 64);
+  const d = ctx.getImageData(0,0,64,64).data;
+  let sum = 0;
+  for(let i=0;i<d.length;i+=4) sum += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+  lightSeries.push([Math.round(tMs), sum / (d.length/4)]);
+  if(lightSeries.length % 30 === 0) $("vidStatus").textContent = "計測中… " + (tMs/1000).toFixed(1) + "秒 / サンプル " + lightSeries.length;
+}
+function decodeLight(){
+  if(lightSeries.length < 10) return;
+  const thr = Number($("vidThr").value);
+  $("vidThrVal").textContent = thr;
+  const unit = $("vidUnitAuto").checked ? null : Number($("vidUnit").value);
+  const r = decodeSeries(lightSeries, thr, state.flash.mode, unit);
+  drawWave($("vidWave"), lightSeries, thr, 255);
+  $("vidUnitInfo").textContent = r.unit ? "単位: 約" + r.unit + "ms / 点滅 " + r.onCount + "回" : "";
+  if(r.text){
+    state.flash.result = r.text; renderFlash();
+    $("flashSos").classList.toggle("show", r.sos);
+    $("vidStatus").textContent = "解読結果を発光タブの結果欄に入れました";
+    histAdd("発光・動画", r.text);
+  } else {
+    $("vidStatus").textContent = "解読できませんでした。閾値と計測範囲を調整してください";
+  }
+}
+function finishLight(){
+  lightSampling = false;
+  if(!lightSeries.length){ $("vidStatus").textContent = "計測できませんでした"; return; }
+  const vals = lightSeries.map(p=>p[1]);
+  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+  if(mx - mn < 15){ $("vidStatus").textContent = "明るさの変化が小さいです。計測範囲を光に合わせてください"; drawWave($("vidWave"), lightSeries, (mx+mn)/2, 255); return; }
+  $("vidThr").value = Math.round(mn + (mx-mn)/2);
+  decodeLight();
+}
+$("vidFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  $("vidPreview").src = URL.createObjectURL(f);
+  lightSeries = [];
+  $("vidStatus").textContent = "「解析する」を押してください（動画の長さだけ時間がかかります）";
+});
+$("vidAnalyze").addEventListener("click", ()=>{
+  const v = $("vidPreview");
+  if(!v.src){ $("vidStatus").textContent = "先に動画ファイルを選んでください"; return; }
+  lightSeries = []; lightSampling = true;
+  v.muted = true; v.currentTime = 0;
+  const step = ()=>{
+    if(!lightSampling) return;
+    lightSample(v.currentTime * 1000);
+    if(!v.ended) requestAnimationFrame(step); else finishLight();
+  };
+  v.play().then(()=>requestAnimationFrame(step)).catch(()=>{ $("vidStatus").textContent = "再生できませんでした"; lightSampling = false; });
+});
+$("vidStop").addEventListener("click", ()=>{ $("vidPreview").pause(); if(lightSampling) finishLight(); });
+$("vidPreview").addEventListener("ended", ()=>{ if(lightSampling) finishLight(); });
+$("vidThr").addEventListener("input", decodeLight);
+$("vidUnitAuto").addEventListener("change", decodeLight);
+$("vidUnit").addEventListener("input", e=>{ $("vidUnitVal2").textContent = e.target.value + "ms"; if(!$("vidUnitAuto").checked) decodeLight(); });
+
+/* ---------- audio morse analysis ---------- */
+let audioSeries = [], audioSampling = false, audCtx = null, audAnalyser = null, audSource = null;
+function ensureAudioGraph(){
+  if(audSource) return true;
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    audCtx = new AC();
+    audSource = audCtx.createMediaElementSource($("audPreview"));
+    audAnalyser = audCtx.createAnalyser(); audAnalyser.fftSize = 2048;
+    audSource.connect(audAnalyser); audAnalyser.connect(audCtx.destination);
+    return true;
+  }catch(e){ return false; }
+}
+function audioSample(){
+  if(!audAnalyser) return;
+  const buf = new Uint8Array(audAnalyser.fftSize);
+  audAnalyser.getByteTimeDomainData(buf);
+  let sum = 0;
+  for(let i=0;i<buf.length;i++){ const v = (buf[i]-128)/128; sum += v*v; }
+  const rms = Math.sqrt(sum / buf.length);
+  audioSeries.push([Math.round($("audPreview").currentTime * 1000), Math.min(100, rms * 260)]);
+  if(audioSeries.length % 60 === 0) $("audStatus").textContent = "計測中… サンプル " + audioSeries.length;
+}
+function decodeAudio(){
+  if(audioSeries.length < 10) return;
+  const thr = Number($("audThr").value);
+  $("audThrVal").textContent = thr;
+  const unit = $("audUnitAuto").checked ? null : Number($("audUnit").value);
+  const r = decodeSeries(audioSeries, thr, state.morse.mode, unit);
+  drawWave($("audWave"), audioSeries, thr, 100);
+  $("audUnitInfo").textContent = r.unit ? "単位: 約" + r.unit + "ms / 音 " + r.onCount + "回" : "";
+  if(r.text){
+    state.morse.result = r.text; renderMorse();
+    $("morseSos").classList.toggle("show", r.sos);
+    $("audStatus").textContent = "解読結果をモールスタブの結果欄に入れました";
+    histAdd("モールス・音声", r.text);
+  } else {
+    $("audStatus").textContent = "解読できませんでした。閾値を調整してください（雑音が多い場合は高めに）";
+  }
+}
+function finishAudio(){
+  audioSampling = false;
+  if(!audioSeries.length){ $("audStatus").textContent = "計測できませんでした"; return; }
+  const vals = audioSeries.map(p=>p[1]);
+  const mx = Math.max.apply(null, vals), mn = Math.min.apply(null, vals);
+  if(mx < 8){ $("audStatus").textContent = "音が小さい、または音声トラックがありません"; drawWave($("audWave"), audioSeries, mx/2, 100); return; }
+  $("audThr").value = Math.max(2, Math.round(mn + (mx-mn) * 0.4));
+  decodeAudio();
+}
+$("audFile").addEventListener("change", e=>{
+  const f = e.target.files[0]; if(!f) return;
+  $("audPreview").src = URL.createObjectURL(f);
+  audioSeries = [];
+  $("audStatus").textContent = "「解析する」を押してください（再生しながら計測します）";
+});
+$("audAnalyze").addEventListener("click", ()=>{
+  const m = $("audPreview");
+  if(!m.src){ $("audStatus").textContent = "先にファイルを選んでください"; return; }
+  if(!ensureAudioGraph()){ $("audStatus").textContent = "この端末では音声解析を初期化できませんでした"; return; }
+  if(audCtx.state === "suspended") audCtx.resume();
+  audioSeries = []; audioSampling = true;
+  m.currentTime = 0;
+  const step = ()=>{
+    if(!audioSampling) return;
+    audioSample();
+    if(!m.ended) requestAnimationFrame(step); else finishAudio();
+  };
+  m.play().then(()=>requestAnimationFrame(step)).catch(()=>{ $("audStatus").textContent = "再生できませんでした"; audioSampling = false; });
+});
+$("audStop").addEventListener("click", ()=>{ $("audPreview").pause(); if(audioSampling) finishAudio(); });
+$("audPreview").addEventListener("ended", ()=>{ if(audioSampling) finishAudio(); });
+$("audThr").addEventListener("input", decodeAudio);
+$("audUnitAuto").addEventListener("change", decodeAudio);
+$("audUnit").addEventListener("input", e=>{ $("audUnitVal").textContent = e.target.value + "ms"; if(!$("audUnitAuto").checked) decodeAudio(); });
 </script>
 </body>
 </html>
