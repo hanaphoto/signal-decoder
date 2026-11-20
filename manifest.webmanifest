@@ -1,0 +1,1 @@
+{"background_color":"#0d1b2e","description":"手旗信号・発光信号・モールス信号を解読する学習・練習用Webアプリ","display":"standalone","icons":[{"purpose":"any","sizes":"any","src":"icon.svg","type":"image/svg+xml"}],"lang":"ja","name":"信号デコーダ","scope":"./","short_name":"信号デコーダ","start_url":"./index.html","theme_color":"#0d1b2e"}

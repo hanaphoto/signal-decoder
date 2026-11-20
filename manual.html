@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>説明書｜信号デコーダ</title>
+<meta name="theme-color" content="#0d1b2e">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+body{background:#0d1b2e;color:#f2f6fb;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;line-height:1.7;max-width:720px;margin:0 auto;padding:20px 14px 40px}
+h1{font-size:22px} h2{font-size:18px;border-left:5px solid #ffb020;padding-left:9px;margin-top:28px}
+a{color:#ffb020} .note{color:#a9bed6;font-size:14px} table{border-collapse:collapse;width:100%;font-size:14px}
+td,th{border:1px solid #33507a;padding:6px 8px;text-align:left} th{background:#1d3350}
+</style>
+</head>
+<body>
+<h1>信号デコーダ 説明書</h1>
+<p><a href="index.html">← アプリに戻る</a></p>
+<p>手旗信号・発光信号・モールス信号を解読する学習・練習用アプリです。入力はすべて端末の中で処理され、外部に送信されません。</p>
+
+<h2>モールス</h2>
+<table>
+<tr><th>方法</th><th>使い方</th></tr>
+<tr><td>タップ解読</td><td>大きなボタンを、短点は短く・長点は長く押します。離している長さで文字と単語の区切りを自動で判定します。速さはスライダーで相手のリズムに合わせてください。</td></tr>
+<tr><td>符号入力</td><td><code>... --- ...</code> のように入力し「解読する」を押します。文字間はスペース、単語間は <code>/</code> です。「・ー」表記でも入力できます。</td></tr>
+<tr><td>逆変換・再生</td><td>文字を入れると符号に変換でき、音でも再生できます（速度は WPM で調整）。</td></tr>
+</table>
+<p class="note">欧文と和文は符号表が別で、同じ符号でも意味が変わります（例: ・ー は欧文 A／和文 イ）。送られてきた方式に合わせて切り替えてください。和文では濁点（・・）が直前のカナと合わさって表示されます（カ＋濁点＝ガ）。SOS は遭難信号として特別に表示されます。</p>
+
+<h2>発光</h2>
+<p>相手の点滅を見ながら、光っている間ボタンを押し続けてください。短い点滅が短点、長い点滅が長点として記録されます。発光は目で追うため、初期速度はモールスより遅く（200ms）してあります。<br>
+「画面の点滅で送信」では、入力した文字を画面全体の点滅で送る練習ができます。</p>
+<p class="note">カメラで自動的に読み取る機能は準備中です。</p>
+
+<h2>手旗・欧文（セマフォア）</h2>
+<p>受信者から見た図で、左側の旗と右側の旗の方向をそれぞれ選び、「この文字で確定」を押します。両旗の組み合わせで文字が決まります（左右を入れ替えても同じ文字です）。</p>
+<ul>
+<li>数字の合図の後は A〜I・K が 1〜9・0 になり、J の位置で文字に戻ります</li>
+<li>写真や鏡で左右が逆になっている時は「左右反転」にチェックを入れてください</li>
+<li>両旗とも下＝休止（単語の区切り）です</li>
+</ul>
+
+<h2>手旗・和文</h2>
+<p>見た原画を、ボタンを押した順に記録し、「確定（原姿に戻る）」を押すと文字になります。1文字は原画1〜3個の組み合わせで、途中まで押すと候補が表示されます。</p>
+<ul>
+<li>濁音は、対象の文字の原画に続けて原画13を押してから確定します（例: カ［8→3］＋13＝ガ）。半濁音は原画14です</li>
+<li>原画0〜9をそのまま数字として読みたい時は「数字モード」をONにしてください</li>
+</ul>
+
+<h2>一覧表・履歴</h2>
+<p>一覧表タブで4種の符号表を文字から検索できます。解読結果は「コピー」した内容などが履歴として端末内にだけ保存され、外部には送信されません。</p>
+
+<h2>ご注意</h2>
+<p>本アプリは学習・練習用です。実際の航海・救難通信の代替にはなりません。符号表は公開資料と照合していますが、実運用の手本にする場合は公式の信号法をご確認ください。</p>
+</body>
+</html>

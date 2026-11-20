@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>信号デコーダ｜手旗・発光・モールス解読</title>
+<meta name="description" content="手旗信号・発光信号・モールス信号をブラウザで解読する学習・練習用Webアプリ。入力は端末内だけで処理し、外部送信しません。">
+<meta name="theme-color" content="#0d1b2e">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{
+  --bg:#0d1b2e; --panel:#16283f; --panel2:#1d3350; --line:#33507a;
+  --text:#f2f6fb; --muted:#a9bed6; --accent:#ffb020; --accent2:#ff7847;
+  --ok:#39d98a; --bad:#ff6b6b; --btn:#24466b; --btn-on:#ffb020;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:16px;line-height:1.5;padding:0 12px calc(20px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto}
+header{display:flex;align-items:center;gap:10px;padding:14px 2px 8px}
+header .logo{font-size:26px}
+h1{font-size:20px;margin:0}
+header .sub{color:var(--muted);font-size:12px}
+header a.manual{margin-left:auto;color:var(--accent);font-size:14px;text-decoration:none;border:1px solid var(--line);padding:6px 10px;border-radius:8px;white-space:nowrap}
+nav.tabs{display:flex;gap:6px;overflow-x:auto;padding:6px 0 10px;position:sticky;top:0;background:var(--bg);z-index:5}
+nav.tabs button{flex:1 0 auto;background:var(--panel);color:var(--muted);border:1px solid var(--line);border-radius:10px;padding:10px 8px;font-size:15px;font-weight:600;cursor:pointer}
+nav.tabs button.active{background:var(--accent);color:#1a1200;border-color:var(--accent)}
+section.panel{display:none}
+section.panel.active{display:block}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px}
+.card h2{font-size:16px;margin:0 0 8px}
+.result-label{font-size:13px;color:var(--muted)}
+.result{font-size:30px;font-weight:700;letter-spacing:.04em;min-height:44px;word-break:break-all;background:var(--panel2);border-radius:10px;padding:10px 12px;margin:4px 0 8px}
+.result:empty::before{content:"（まだありません）";color:var(--muted);font-size:16px;font-weight:400}
+.subresult{font-size:15px;color:var(--muted);min-height:22px;word-break:break-all}
+.subresult b{color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row>*{flex:0 0 auto}
+.grow{flex:1 1 auto}
+button.act{background:var(--btn);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:15px;font-weight:600;cursor:pointer;min-height:44px}
+button.act:active{filter:brightness(1.3)}
+button.primary{background:var(--accent);color:#1a1200;border-color:var(--accent)}
+button.danger{background:#5a2430;border-color:#8a3a4a}
+button.small{padding:6px 10px;min-height:38px;font-size:14px}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{background:transparent;border:0;color:var(--muted);padding:9px 16px;font-size:15px;font-weight:600;cursor:pointer;min-height:44px}
+.seg button.active{background:var(--accent);color:#1a1200}
+textarea,input[type=text]{width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:17px}
+textarea{min-height:64px;resize:vertical}
+label.lbl{font-size:13px;color:var(--muted);display:block;margin:8px 0 4px}
+input[type=range]{width:100%;accent-color:var(--accent);height:36px}
+.keybtn{display:block;width:100%;min-height:120px;border-radius:16px;border:2px solid var(--line);background:var(--panel2);color:var(--text);font-size:20px;font-weight:700;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none}
+.keybtn small{display:block;font-size:13px;color:var(--muted);font-weight:400;margin-top:4px}
+.keybtn.on{background:var(--btn-on);color:#1a1200;border-color:var(--btn-on)}
+.keybtn.on small{color:#5a4300}
+.keybtn.light.on{background:#ffd76a;box-shadow:0 0 32px #ffd76a88}
+.note{font-size:13px;color:var(--muted)}
+.warn{color:var(--bad);font-weight:600}
+.sosflag{display:none;background:#5a1620;border:1px solid var(--bad);color:#ffd7d7;border-radius:10px;padding:8px 12px;font-weight:700;margin:6px 0}
+.sosflag.show{display:block}
+.pads{display:flex;gap:12px;justify-content:space-between}
+.padwrap{flex:1}
+.padwrap .padtitle{text-align:center;font-size:14px;color:var(--muted);margin-bottom:6px}
+.pad{position:relative;width:100%;max-width:210px;aspect-ratio:1;margin:0 auto;background:var(--panel2);border:1px solid var(--line);border-radius:50%}
+.pad button{position:absolute;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;border:1px solid var(--line);background:var(--btn);color:var(--text);font-size:12px;font-weight:700;cursor:pointer}
+.pad button.sel{background:var(--accent);color:#1a1200}
+.pad .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:20px}
+svg.figure{display:block;margin:0 auto}
+.genga{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.genga button{background:var(--btn);border:1px solid var(--line);color:var(--text);border-radius:10px;padding:8px 2px;min-height:56px;font-size:15px;font-weight:700;cursor:pointer}
+.genga button small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+.genga button:active{background:var(--accent);color:#1a1200}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+table.tbl td,table.tbl th{border:1px solid var(--line);padding:5px 7px;text-align:left}
+table.tbl th{background:var(--panel2)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px}
+.grid .cell{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px}
+.grid .cell b{font-size:17px}
+#flashOverlay{position:fixed;inset:0;background:#000;display:none;z-index:50;align-items:center;justify-content:center;flex-direction:column;gap:16px}
+#flashOverlay.show{display:flex}
+#flashOverlay .lamp{width:180px;height:180px;border-radius:50%;background:#222;border:3px solid #555}
+#flashOverlay .lamp.on{background:#fff8d6;box-shadow:0 0 90px #fff3b0}
+footer{color:var(--muted);font-size:12px;padding:10px 2px 0}
+details.hist{margin-top:6px}
+details.hist li{font-size:14px}
+@media (max-width:420px){.genga{grid-template-columns:repeat(3,1fr)}.result{font-size:26px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo" aria-hidden="true">🚩</div>
+  <div><h1>信号デコーダ</h1><div class="sub">手旗・発光・モールス解読（学習・練習用）</div></div>
+  <a class="manual" href="manual.html">説明書</a>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="morse" class="active">モールス</button>
+  <button data-tab="flash">発光</button>
+  <button data-tab="semaphore">手旗・欧文</button>
+  <button data-tab="tebata">手旗・和文</button>
+  <button data-tab="tables">一覧表</button>
+</nav>
+
+<!-- ============ MORSE ============ -->
+<section class="panel active" id="panel-morse">
+  <div class="card">
+    <div class="row">
+      <span class="lbl" style="margin:0">方式</span>
+      <div class="seg" id="morseModeSeg">
+        <button data-mode="international" class="active">欧文</button>
+        <button data-mode="wabun">和文（カナ）</button>
+      </div>
+    </div>
+    <div class="result-label" style="margin-top:10px">解読結果</div>
+    <div class="result" id="morseResult"></div>
+    <div class="sosflag" id="morseSos">⚠ SOS（遭難信号）を検出しました</div>
+    <div class="subresult" id="morseSub"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="act small" id="morseBack">⌫ 1文字戻る</button>
+      <button class="act small" id="morseClear">全消去</button>
+      <button class="act small" id="morseCopy">コピー</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>タップで解読（電鍵）</h2>
+    <button class="keybtn" id="morseKey">押している間だけ信号<small>短く押す＝短点（・）／長く押す＝長点（ー）<br>離す長さで文字・単語の区切りを自動判定します</small></button>
+    <label class="lbl">基準の速さ（1単位）: <span id="morseUnitVal">120ms ≒ 10 WPM</span></label>
+    <input type="range" id="morseUnit" min="40" max="300" step="10" value="120">
+    <div class="row"><label class="note"><input type="checkbox" id="morseSound" checked> 押している間、音を鳴らす</label></div>
+  </div>
+
+  <div class="card">
+    <h2>符号を入力して解読</h2>
+    <textarea id="morseTextIn" placeholder="例: ... --- ...　（文字間はスペース、単語間は / ）"></textarea>
+    <div class="row" style="margin-top:8px"><button class="act primary" id="morseTextDecode">解読する</button></div>
+    <label class="lbl">文字から符号へ（逆変換）</label>
+    <input type="text" id="morseEncodeIn" placeholder="例: SOS ／ 和文は サクラ">
+    <div class="row" style="margin-top:8px">
+      <button class="act" id="morseEncodeBtn">符号に変換</button>
+      <button class="act" id="morsePlayBtn">音で再生</button>
+      <button class="act danger" id="morseStopBtn">停止</button>
+    </div>
+    <label class="lbl">再生速度: <span id="morseWpmVal">15 WPM</span></label>
+    <input type="range" id="morseWpm" min="5" max="30" step="1" value="15">
+    <div class="subresult" id="morseEncodeOut"></div>
+  </div>
+</section>
+
+<!-- ============ FLASH ============ -->
+<section class="panel" id="panel-flash">
+  <div class="card">
+    <div class="row">
+      <span class="lbl" style="margin:0">方式</span>
+      <div class="seg" id="flashModeSeg">
+        <button data-mode="international" class="active">欧文</button>
+        <button data-mode="wabun">和文（カナ）</button>
+      </div>
+    </div>
+    <div class="result-label" style="margin-top:10px">解読結果</div>
+    <div class="result" id="flashResult"></div>
+    <div class="sosflag" id="flashSos">⚠ SOS（遭難信号）を検出しました</div>
+    <div class="subresult" id="flashSub"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="act small" id="flashBack">⌫ 1文字戻る</button>
+      <button class="act small" id="flashClear">全消去</button>
+      <button class="act small" id="flashCopy">コピー</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>点滅を見ながら記録して解読</h2>
+    <button class="keybtn light" id="flashKey">光っている間、押し続ける<small>短い点滅＝短点／長い点滅＝長点として記録します<br>カメラ解読は準備中です。まずこのボタンで記録してください</small></button>
+    <label class="lbl">基準の速さ（1単位）: <span id="flashUnitVal">200ms ≒ 6 WPM</span></label>
+    <input type="range" id="flashUnit" min="60" max="400" step="10" value="200">
+    <p class="note">発光信号は目で追うため、モールス（音）より遅い速度が実用です。相手の点滅リズムに合わせて調整してください。</p>
+  </div>
+
+  <div class="card">
+    <h2>画面の点滅で送信（練習）</h2>
+    <input type="text" id="flashSendIn" placeholder="例: SOS">
+    <label class="lbl">送信速度: <span id="flashWpmVal">8 WPM</span></label>
+    <input type="range" id="flashWpm" min="5" max="20" step="1" value="8">
+    <div class="row" style="margin-top:8px"><button class="act primary" id="flashSendBtn">点滅で送信する</button></div>
+  </div>
+</section>
+
+<!-- ============ SEMAPHORE ============ -->
+<section class="panel" id="panel-semaphore">
+  <div class="card">
+    <div class="result-label">解読結果</div>
+    <div class="result" id="semResult"></div>
+    <div class="subresult" id="semSub"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="act small" id="semBack">⌫ 1文字戻る</button>
+      <button class="act small" id="semClear">全消去</button>
+      <button class="act small" id="semCopy">コピー</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>旗の位置を選ぶ（受信者から見た図）</h2>
+    <svg class="figure" id="semFigure" width="170" height="170" viewBox="0 0 170 170" aria-label="旗の形のプレビュー"></svg>
+    <div class="pads">
+      <div class="padwrap"><div class="padtitle">左側の旗</div><div class="pad" id="semPadL"></div></div>
+      <div class="padwrap"><div class="padtitle">右側の旗</div><div class="pad" id="semPadR"></div></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="act primary grow" id="semConfirm">この文字で確定</button>
+      <button class="act" id="semSpace">空白（休止）</button>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <label class="note"><input type="checkbox" id="semMirror"> 左右反転（鏡・写真が反転している時）</label>
+      <span class="note" id="semModeState">現在: 文字モード</span>
+    </div>
+    <p class="note">数字を送る合図（両旗とも斜め上〜上）の後は A〜I・K が 1〜9・0 になります。J の位置で文字モードに戻ります。</p>
+  </div>
+  <div class="card">
+    <h2>文字から旗へ（逆変換）</h2>
+    <input type="text" id="semEncodeIn" placeholder="例: SOS">
+    <div class="row" style="margin-top:8px"><button class="act" id="semEncodeBtn">旗の位置を表示</button></div>
+    <div class="subresult" id="semEncodeOut"></div>
+  </div>
+</section>
+
+<!-- ============ TEBATA ============ -->
+<section class="panel" id="panel-tebata">
+  <div class="card">
+    <div class="result-label">解読結果</div>
+    <div class="result" id="tebResult"></div>
+    <div class="subresult" id="tebSub"></div>
+    <div class="row" style="margin-top:8px">
+      <button class="act small" id="tebBack">⌫ 1文字戻る</button>
+      <button class="act small" id="tebClear">全消去</button>
+      <button class="act small" id="tebCopy">コピー</button>
+    </div>
+    <div class="row" style="margin-top:8px"><label class="note"><input type="checkbox" id="tebNumMode"> 数字モード（原画0〜9をそのまま数字として確定）</label></div>
+  </div>
+  <div class="card">
+    <h2>原画ボタンを押した順に記録</h2>
+    <div class="subresult" id="tebSeq">入力中: （なし）</div>
+    <div class="subresult" id="tebCand"></div>
+    <div class="genga" id="tebGenga" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:10px">
+      <button class="act primary grow" id="tebConfirm">確定（原姿に戻る）</button>
+      <button class="act" id="tebUndo">1つ戻る</button>
+    </div>
+    <p class="note">和文手旗は、原画を1〜3個組み合わせて1文字を表します。濁音は対象の文字に続けて原画13、半濁音は原画14を押してから確定してください（例: カ［8→3］＋13＝ガ）。</p>
+  </div>
+  <div class="card">
+    <h2>カナから原画へ（逆変換）</h2>
+    <input type="text" id="tebEncodeIn" placeholder="例: サクラ">
+    <div class="row" style="margin-top:8px"><button class="act" id="tebEncodeBtn">原画を表示</button></div>
+    <div class="subresult" id="tebEncodeOut"></div>
+  </div>
+</section>
+
+<!-- ============ TABLES ============ -->
+<section class="panel" id="panel-tables">
+  <div class="card">
+    <h2>一覧表</h2>
+    <input type="text" id="tblSearch" placeholder="文字で検索（例: A ／ サ ／ SOS）">
+    <div id="tblBody" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<div class="card">
+  <details class="hist">
+    <summary>解読の履歴（この端末内だけに保存）</summary>
+    <ul id="histList"></ul>
+    <button class="act small" id="histClear">履歴を消す</button>
+  </details>
+</div>
+
+<footer>
+  本アプリは学習・練習用です。実際の航海・救難通信の代替にはなりません。<br>
+  入力した文字・信号は外部に送信されず、すべてお使いの端末の中で処理されます。
+</footer>
+
+<div id="flashOverlay" role="dialog" aria-label="点滅送信中">
+  <div class="lamp" id="flashLamp"></div>
+  <div id="flashProgress" style="font-size:18px"></div>
+  <button class="act danger" id="flashStopBtn" style="min-width:140px">停止</button>
+</div>
+
+<script id="core">
+"use strict";
+const DATA = {"morseIntl": {"letters": {"A": ".-", "B": "-...", "C": "-.-.", "D": "-..", "E": ".", "F": "..-.", "G": "--.", "H": "....", "I": "..", "J": ".---", "K": "-.-", "L": ".-..", "M": "--", "N": "-.", "O": "---", "P": ".--.", "Q": "--.-", "R": ".-.", "S": "...", "T": "-", "U": "..-", "V": "...-", "W": ".--", "X": "-..-", "Y": "-.--", "Z": "--.."}, "numbers": {"1": ".----", "2": "..---", "3": "...--", "4": "....-", "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.", "0": "-----"}, "punctuation": {".": ".-.-.-", ",": "--..--", "?": "..--..", "/": "-..-.", "-": "-....-", "(": "-.--.", ")": "-.--.-", ":": "---...", "'": ".----.", "\"": ".-..-.", "=": "-...-", "+": ".-.-.", "@": ".--.-.", "!": "-.-.--", "&": ".-...", ";": "-.-.-.", "_": "..--.-", "$": "...-..-"}}, "morseWabun": {"kana": {"ア": "--.--", "イ": ".-", "ウ": "..-", "エ": "-.---", "オ": ".-...", "カ": ".-..", "キ": "-.-..", "ク": "...-", "ケ": "-.--", "コ": "----", "サ": "-.-.-", "シ": "--.-.", "ス": "---.-", "セ": ".---.", "ソ": "---.", "タ": "-.", "チ": "..-.", "ツ": ".--.", "テ": ".-.--", "ト": "..-..", "ナ": ".-.", "ニ": "-.-.", "ヌ": "....", "ネ": "--.-", "ノ": "..--", "ハ": "-...", "ヒ": "--..-", "フ": "--..", "ヘ": ".", "ホ": "-..", "マ": "-..-", "ミ": "..-.-", "ム": "-", "メ": "-...-", "モ": "-..-.", "ヤ": ".--", "ユ": "-..--", "ヨ": "--", "ラ": "...", "リ": "--.", "ル": "-.--.", "レ": "---", "ロ": ".-.-", "ワ": "-.-", "ヰ": ".-..-", "ヱ": ".--..", "ヲ": ".---", "ン": ".-.-."}, "numbers": {"1": ".----", "2": "..---", "3": "...--", "4": "....-", "5": ".....", "6": "-....", "7": "--...", "8": "---..", "9": "----.", "0": "-----"}, "marks": {"濁点": "..", "半濁点": "..--.", "長音": ".--.-", "読点": ".-.-.-", "句点": ".-.-..", "始め括弧": "-.--.-", "終わり括弧": ".-..-."}}, "semaphore": {"pairs": {"0-1": "A", "0-2": "B", "0-3": "C", "0-4": "D", "0-5": "E", "0-6": "F", "0-7": "G", "1-2": "H", "1-3": "I", "1-4": "K", "1-5": "L", "1-6": "M", "1-7": "N", "2-3": "O", "2-4": "P", "2-5": "Q", "2-6": "R", "2-7": "S", "3-4": "T", "3-5": "U", "3-6": "Y", "3-7": "ANNUL/CANCEL", "4-5": "NUMERALS", "4-6": "J", "4-7": "V", "5-6": "W", "5-7": "X", "6-7": "Z", "0-0": "REST/SPACE"}, "digits": {"A": "1", "B": "2", "C": "3", "D": "4", "E": "5", "F": "6", "G": "7", "H": "8", "I": "9", "K": "0"}}, "tebata": {"genga": {"0": {"label": "○ / 零", "desc": "赤を基本姿勢から時計回りに回す"}, "1": {"label": "一", "desc": "原画1"}, "2": {"label": "｜", "desc": "原画2"}, "2R": {"label": "逆2", "desc": "原画2の逆向き。データ上は '2R' と区別する"}, "3": {"label": "ノ", "desc": "原画3"}, "4": {"label": "＼", "desc": "原画4"}, "5": {"label": "・", "desc": "原画5"}, "6": {"label": "ニ", "desc": "原画6"}, "7": {"label": "L", "desc": "原画7"}, "8": {"label": "┐", "desc": "原画8"}, "9": {"label": "フ", "desc": "原画9"}, "10": {"label": "ハ", "desc": "原画10"}, "11": {"label": "ク", "desc": "原画11"}, "12": {"label": "リ", "desc": "原画12"}, "13": {"label": "濁点 ゛", "desc": "原画13"}, "14": {"label": "半濁点 ゜", "desc": "原画14"}}, "kana_sequences": {"ア": ["9", "3"], "イ": ["3", "2"], "ウ": ["6", "9"], "エ": ["1", "2R", "1"], "オ": ["1", "2", "3"], "カ": ["8", "3"], "キ": ["6", "2"], "ク": ["11"], "ケ": ["7", "3"], "コ": ["8", "1"], "サ": ["1", "12"], "シ": ["5", "7"], "ス": ["1", "2", "5"], "セ": ["9", "7"], "ソ": ["5", "3"], "タ": ["11", "5"], "チ": ["7", "2R"], "ツ": ["12", "3"], "テ": ["6", "3"], "ト": ["2", "5"], "ナ": ["1", "3"], "ニ": ["6"], "ヌ": ["9", "4"], "ネ": ["9", "2", "1"], "ノ": ["3"], "ハ": ["10"], "ヒ": ["1", "7"], "フ": ["9"], "ヘ": ["4"], "ホ": ["1", "2", "10"], "マ": ["9", "5"], "ミ": ["6", "1"], "ム": ["7", "5"], "メ": ["3", "5"], "モ": ["6", "7"], "ヤ": ["8", "4"], "ユ": ["9", "1"], "ヨ": ["8", "6"], "ラ": ["5", "9"], "リ": ["12"], "ル": ["3", "7"], "レ": ["7"], "ロ": ["7", "8"], "ワ": ["2", "9"], "ヰ": ["6", "12"], "ヱ": ["9", "3", "1"], "ヲ": ["1", "9"], "ン": ["5", "1"]}}};
+
+/* ---------- Morse ---------- */
+const DAKUTEN_MAP = {"カ":"ガ","キ":"ギ","ク":"グ","ケ":"ゲ","コ":"ゴ","サ":"ザ","シ":"ジ","ス":"ズ","セ":"ゼ","ソ":"ゾ","タ":"ダ","チ":"ヂ","ツ":"ヅ","テ":"デ","ト":"ド","ハ":"バ","ヒ":"ビ","フ":"ブ","ヘ":"ベ","ホ":"ボ","ウ":"ヴ"};
+const HANDAKUTEN_MAP = {"ハ":"パ","ヒ":"ピ","フ":"プ","ヘ":"ペ","ホ":"ポ"};
+const VOICED_REVERSE = {};
+Object.keys(DAKUTEN_MAP).forEach(k=>{ VOICED_REVERSE[DAKUTEN_MAP[k]] = {base:k, mark:"dakuten"}; });
+Object.keys(HANDAKUTEN_MAP).forEach(k=>{ VOICED_REVERSE[HANDAKUTEN_MAP[k]] = {base:k, mark:"handakuten"}; });
+
+function morseTable(mode){
+  const t = {};
+  if(mode === "wabun"){
+    Object.assign(t, DATA.morseWabun.kana, DATA.morseWabun.numbers);
+  } else {
+    Object.assign(t, DATA.morseIntl.letters, DATA.morseIntl.numbers, DATA.morseIntl.punctuation);
+  }
+  return t;
+}
+function morseReverse(mode){
+  const t = morseTable(mode), r = {};
+  Object.keys(t).forEach(ch=>{ r[t[ch]] = ch; });
+  return r;
+}
+function normalizeMorseInput(s){
+  return String(s)
+    .replace(/[・･]/g, ".").replace(/[ー－―‐]/g, "-")
+    .replace(/．/g, ".").replace(/　/g, " ")
+    .replace(/トン/g, ".").replace(/ツー/g, "-")
+    .trim();
+}
+function decodeMorseText(input, mode){
+  const rev = morseReverse(mode);
+  const marks = (mode === "wabun") ? DATA.morseWabun.marks : {};
+  const norm = normalizeMorseInput(input);
+  let sos = false;
+  if(norm.replace(/\s/g,"") === "...---...") sos = true;
+  const words = norm.split(/\s*\/\s*|\n+/).filter(w=>w.length>0);
+  const outWords = words.map(word=>{
+    const tokens = word.split(/\s+/).filter(Boolean);
+    let chars = [];
+    tokens.forEach(tok=>{
+      if(tok === "...---..."){ sos = true; chars.push("S","O","S"); return; }
+      if(mode === "wabun" && tok === marks["濁点"]){
+        const prev = chars[chars.length-1];
+        if(prev && DAKUTEN_MAP[prev]) chars[chars.length-1] = DAKUTEN_MAP[prev]; else chars.push("゛");
+        return;
+      }
+      if(mode === "wabun" && tok === marks["半濁点"]){
+        const prev = chars[chars.length-1];
+        if(prev && HANDAKUTEN_MAP[prev]) chars[chars.length-1] = HANDAKUTEN_MAP[prev]; else chars.push("゜");
+        return;
+      }
+      if(mode === "wabun"){
+        let markChar = null;
+        Object.keys(marks).forEach(k=>{ if(marks[k] === tok && k !== "濁点" && k !== "半濁点") markChar = k; });
+        if(markChar === "長音"){ chars.push("ー"); return; }
+        if(markChar === "読点"){ chars.push("、"); return; }
+        if(markChar === "句点"){ chars.push("。"); return; }
+      }
+      const ch = rev[tok];
+      chars.push(ch !== undefined ? ch : "？");
+    });
+    return chars.join("");
+  });
+  return { text: outWords.join(" "), sos: sos };
+}
+function encodeMorseText(text, mode){
+  const t = morseTable(mode);
+  const marks = (mode === "wabun") ? DATA.morseWabun.marks : {};
+  const words = String(text).toUpperCase().trim().split(/\s+/).filter(Boolean);
+  const outWords = words.map(word=>{
+    const toks = [];
+    for(const rawCh of word){
+      let ch = rawCh;
+      // hiragana -> katakana
+      if(mode === "wabun" && ch >= "ぁ" && ch <= "ん") ch = String.fromCharCode(ch.charCodeAt(0) + 0x60);
+      if(mode === "wabun" && VOICED_REVERSE[ch]){
+        const v = VOICED_REVERSE[ch];
+        if(t[v.base]) toks.push(t[v.base]);
+        toks.push(v.mark === "dakuten" ? marks["濁点"] : marks["半濁点"]);
+        continue;
+      }
+      if(mode === "wabun" && ch === "ー"){ toks.push(marks["長音"]); continue; }
+      if(mode === "wabun" && ch === "、"){ toks.push(marks["読点"]); continue; }
+      if(mode === "wabun" && ch === "。"){ toks.push(marks["句点"]); continue; }
+      if(mode === "wabun" && "ッャュョァィゥェォ".includes(ch)){
+        const big = {"ッ":"ツ","ャ":"ヤ","ュ":"ユ","ョ":"ヨ","ァ":"ア","ィ":"イ","ゥ":"ウ","ェ":"エ","ォ":"オ"}[ch];
+        if(big && t[big]){ toks.push(t[big]); continue; }
+      }
+      if(t[ch]) toks.push(t[ch]); else toks.push("？");
+    }
+    return toks.join(" ");
+  });
+  return outWords.join(" / ");
+}
+/* Timing events: [["on",ms],["off",ms],...] -> text */
+function decodeTimingEvents(events, unitMs, mode){
+  let tokens = [], cur = "";
+  const flushLetter = ()=>{ if(cur){ tokens.push(cur); cur = ""; } };
+  events.forEach(ev=>{
+    const kind = ev[0], ms = ev[1];
+    if(kind === "on"){ cur += (ms < unitMs * 2 ? "." : "-"); }
+    else {
+      if(ms >= unitMs * 5){ flushLetter(); tokens.push("/"); }
+      else if(ms >= unitMs * 2){ flushLetter(); }
+    }
+  });
+  flushLetter();
+  // rebuild a morse string and reuse text decoder
+  let parts = [], buf = [];
+  tokens.forEach(tk=>{
+    if(tk === "/"){ parts.push(buf.join(" ")); buf = []; }
+    else buf.push(tk);
+  });
+  parts.push(buf.join(" "));
+  return decodeMorseText(parts.join(" / "), mode);
+}
+
+/* ---------- Semaphore (international) ---------- */
+const SEM_VECTORS = {0:[0,1],1:[-0.707,0.707],2:[-1,0],3:[-0.707,-0.707],4:[0,-1],5:[0.707,-0.707],6:[1,0],7:[0.707,0.707]};
+const SEM_LABELS = {0:"下",1:"斜め下",2:"左",3:"斜め上",4:"上",5:"斜め上",6:"右",7:"斜め下"};
+function semMirrorPos(p){ return (8 - p) % 8; }
+function decodeSemaphorePair(a, b, numeric, mirror){
+  let pa = a, pb = b;
+  if(mirror){ pa = semMirrorPos(pa); pb = semMirrorPos(pb); }
+  const key = [Math.min(pa,pb), Math.max(pa,pb)].join("-");
+  if(key === "0-0") return {kind:"space", char:" ", nextNumeric:numeric};
+  if(key === "4-5") return {kind:"numerals", char:"", display:"［数字］", nextNumeric:true};
+  if(key === "4-6" && numeric) return {kind:"letters", char:"", display:"［文字］", nextNumeric:false};
+  if(key === "3-7") return {kind:"annul", char:"", display:"［訂正］", nextNumeric:numeric};
+  const letter = DATA.semaphore.pairs[key];
+  if(!letter) return {kind:"unknown", char:"？", nextNumeric:numeric};
+  if(numeric && DATA.semaphore.digits[letter]) return {kind:"digit", char:DATA.semaphore.digits[letter], nextNumeric:true};
+  return {kind:"letter", char:letter, nextNumeric:numeric};
+}
+function semaphorePairForChar(ch){
+  const pairs = DATA.semaphore.pairs;
+  for(const k of Object.keys(pairs)){ if(pairs[k] === ch) return k.split("-").map(Number); }
+  return null;
+}
+
+/* ---------- Tebata (wabun) ---------- */
+function tebataSeqKey(seq){ return seq.map(String).join(","); }
+function tebataDecode(seq){
+  const s = seq.map(String);
+  const table = DATA.tebata.kana_sequences;
+  for(const kana of Object.keys(table)){ if(tebataSeqKey(table[kana]) === tebataSeqKey(s)) return {kind:"kana", char:kana}; }
+  const last = s[s.length-1];
+  if((last === "13" || last === "14") && s.length >= 2){
+    const baseSeq = s.slice(0, -1);
+    for(const kana of Object.keys(table)){
+      if(tebataSeqKey(table[kana]) === tebataSeqKey(baseSeq)){
+        const map = (last === "13") ? DAKUTEN_MAP : HANDAKUTEN_MAP;
+        if(map[kana]) return {kind:"kana", char:map[kana]};
+        return {kind:"unknown", char:"？"};
+      }
+    }
+  }
+  if(s.length === 1 && s[0] === "2") return {kind:"kana", char:"ー"};
+  if(s.length === 1 && s[0] === "13") return {kind:"mark", mark:"dakuten"};
+  if(s.length === 1 && s[0] === "14") return {kind:"mark", mark:"handakuten"};
+  return {kind:"unknown", char:"？"};
+}
+function tebataCandidates(seq){
+  const s = seq.map(String), out = [];
+  const table = DATA.tebata.kana_sequences;
+  Object.keys(table).forEach(kana=>{
+    const t = table[kana].map(String);
+    if(s.length <= t.length && s.every((v,i)=>v === t[i])) out.push(kana);
+  });
+  return out;
+}
+function tebataEncode(text){
+  const table = DATA.tebata.kana_sequences, out = [];
+  for(const rawCh of String(text)){
+    let ch = rawCh;
+    if(ch >= "ぁ" && ch <= "ん") ch = String.fromCharCode(ch.charCodeAt(0) + 0x60);
+    if(VOICED_REVERSE[ch]){
+      const v = VOICED_REVERSE[ch];
+      if(table[v.base]){ out.push(ch + "[" + table[v.base].join("→") + "→" + (v.mark === "dakuten" ? "13" : "14") + "]"); continue; }
+    }
+    if(table[ch]) out.push(ch + "[" + table[ch].join("→") + "]");
+    else if(ch === " ") out.push("（空白）");
+    else out.push(ch + "[対応なし]");
+  }
+  return out.join(" ");
+}
+if(typeof module !== "undefined" && module.exports){
+  module.exports = {DATA, decodeMorseText, encodeMorseText, decodeTimingEvents, decodeSemaphorePair, semaphorePairForChar, tebataDecode, tebataCandidates, tebataEncode, normalizeMorseInput};
+}
+</script>
+
+<script id="ui">
+"use strict";
+const $ = id => document.getElementById(id);
+const state = {
+  morse: {mode:"international", result:"", curToken:"", historyPush:null},
+  flash: {mode:"international", result:""},
+  sem: {result:"", left:0, right:0, numeric:false},
+  teb: {result:"", seq:[]}
+};
+/* history */
+function histLoad(){ try{ return JSON.parse(localStorage.getItem("signal-decoder-history")||"[]"); }catch(e){ return []; } }
+function histAdd(label, text){
+  if(!text) return;
+  const h = histLoad(); h.unshift(new Date().toLocaleString("ja-JP") + "｜" + label + "｜" + text);
+  localStorage.setItem("signal-decoder-history", JSON.stringify(h.slice(0,30))); histRender();
+}
+function histRender(){
+  const ul = $("histList"); ul.innerHTML = "";
+  histLoad().forEach(x=>{ const li=document.createElement("li"); li.textContent=x; ul.appendChild(li); });
+}
+$("histClear").addEventListener("click", ()=>{ localStorage.removeItem("signal-decoder-history"); histRender(); });
+
+/* tabs */
+document.querySelectorAll("nav.tabs button").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("active", b===btn));
+    document.querySelectorAll("section.panel").forEach(p=>p.classList.toggle("active", p.id === "panel-" + btn.dataset.tab));
+    if(btn.dataset.tab === "tables") renderTables();
+  });
+});
+function segWire(segId, cb){
+  const seg = $(segId);
+  seg.querySelectorAll("button").forEach(b=> b.addEventListener("click", ()=>{
+    seg.querySelectorAll("button").forEach(x=>x.classList.toggle("active", x===b)); cb(b.dataset.mode);
+  }));
+}
+function copyText(t, btn){
+  if(!t) return;
+  const done = ()=>{ const o=btn.textContent; btn.textContent="コピーしました"; setTimeout(()=>btn.textContent=o,1200); };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(done).catch(()=>{ fallbackCopy(t); done(); }); }
+  else { fallbackCopy(t); done(); }
+}
+function fallbackCopy(t){
+  const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); }catch(e){} ta.remove();
+}
+
+/* ---------- audio ---------- */
+let audioCtx = null, osc = null, gainNode = null, playTimers = [];
+function beepStart(freq){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    osc = audioCtx.createOscillator(); gainNode = audioCtx.createGain();
+    osc.type = "sine"; osc.frequency.value = freq || 620; gainNode.gain.value = 0.12;
+    osc.connect(gainNode); gainNode.connect(audioCtx.destination); osc.start();
+  }catch(e){}
+}
+function beepStop(){ try{ if(osc){ osc.stop(); osc.disconnect(); osc=null; } }catch(e){} }
+function stopPlayback(){ playTimers.forEach(t=>clearTimeout(t)); playTimers=[]; beepStop(); }
+
+/* ---------- tap decoder (shared: morse / flash) ---------- */
+function makeTapDecoder(opts){
+  // opts: getUnit(), getMode(), onChar(text,sos), onToken(tokenStr)
+  let pressAt = 0, letterTimer = null, wordTimer = null, cur = "";
+  function clearTimers(){ if(letterTimer) clearTimeout(letterTimer); if(wordTimer) clearTimeout(wordTimer); letterTimer = wordTimer = null; }
+  function flushLetter(wordBreak){
+    if(cur){
+      const r = decodeMorseText(cur, opts.getMode());
+      opts.onChar(r.text, r.sos);
+      cur = ""; opts.onToken("");
+    }
+    if(wordBreak) opts.onChar(" ", false);
+  }
+  return {
+    down(){
+      clearTimers();
+      pressAt = performance.now();
+    },
+    up(){
+      if(!pressAt) return;
+      const ms = performance.now() - pressAt; pressAt = 0;
+      const unit = opts.getUnit();
+      cur += (ms < unit * 2 ? "." : "-");
+      opts.onToken(cur);
+      const u = unit;
+      letterTimer = setTimeout(()=>{ flushLetter(false); }, u * 2.2);
+      wordTimer = setTimeout(()=>{ flushLetter(true); }, u * 5.2);
+    },
+    reset(){ clearTimers(); cur=""; opts.onToken(""); }
+  };
+}
+
+/* ---------- Morse UI ---------- */
+let morseUnit = 120;
+const morseTap = makeTapDecoder({
+  getUnit: ()=>morseUnit,
+  getMode: ()=>state.morse.mode,
+  onChar: (t, sos)=>{ state.morse.result += t; if(sos) $("morseSos").classList.add("show"); renderMorse(); },
+  onToken: (tok)=>{ $("morseSub").innerHTML = tok ? "入力中の符号: <b>" + tok + "</b>" : ""; }
+});
+function renderMorse(){ $("morseResult").textContent = state.morse.result; }
+segWire("morseModeSeg", m=>{ state.morse.mode = m; });
+$("morseUnit").addEventListener("input", e=>{
+  morseUnit = Number(e.target.value);
+  $("morseUnitVal").textContent = morseUnit + "ms ≒ " + Math.round(1200/morseUnit) + " WPM";
+});
+(function(){
+  const key = $("morseKey");
+  key.addEventListener("pointerdown", e=>{ e.preventDefault(); key.classList.add("on"); if($("morseSound").checked) beepStart(620); morseTap.down(); });
+  const release = ()=>{ if(!key.classList.contains("on")) return; key.classList.remove("on"); beepStop(); morseTap.up(); };
+  key.addEventListener("pointerup", release); key.addEventListener("pointerleave", release); key.addEventListener("pointercancel", release);
+})();
+$("morseTextDecode").addEventListener("click", ()=>{
+  const r = decodeMorseText($("morseTextIn").value, state.morse.mode);
+  state.morse.result = r.text;
+  $("morseSos").classList.toggle("show", r.sos);
+  $("morseSub").textContent = "";
+  renderMorse(); histAdd("モールス", r.text);
+});
+$("morseBack").addEventListener("click", ()=>{ state.morse.result = state.morse.result.slice(0,-1); renderMorse(); });
+$("morseClear").addEventListener("click", ()=>{ state.morse.result=""; $("morseSos").classList.remove("show"); morseTap.reset(); renderMorse(); });
+$("morseCopy").addEventListener("click", e=>copyText(state.morse.result, e.target));
+$("morseEncodeBtn").addEventListener("click", ()=>{
+  $("morseEncodeOut").textContent = encodeMorseText($("morseEncodeIn").value, state.morse.mode);
+});
+$("morseWpm").addEventListener("input", e=>{ $("morseWpmVal").textContent = e.target.value + " WPM"; });
+$("morsePlayBtn").addEventListener("click", ()=>{
+  stopPlayback();
+  const code = encodeMorseText($("morseEncodeIn").value, state.morse.mode);
+  $("morseEncodeOut").textContent = code;
+  const unit = 1200 / Number($("morseWpm").value);
+  let at = 0;
+  const seq = [];
+  code.split(" / ").forEach((word, wi)=>{
+    if(wi>0){ at += unit*7; }
+    word.split(" ").forEach((tok, ti)=>{
+      if(ti>0) at += unit*3;
+      for(const s of tok){
+        seq.push([at, s === "." ? unit : unit*3]); at += (s === "." ? unit : unit*3) + unit;
+      }
+    });
+  });
+  seq.forEach(([start, dur])=>{
+    playTimers.push(setTimeout(()=>beepStart(620), start));
+    playTimers.push(setTimeout(()=>beepStop(), start + dur));
+  });
+});
+$("morseStopBtn").addEventListener("click", stopPlayback);
+
+/* ---------- Flash UI ---------- */
+let flashUnit = 200;
+const flashTap = makeTapDecoder({
+  getUnit: ()=>flashUnit,
+  getMode: ()=>state.flash.mode,
+  onChar: (t, sos)=>{ state.flash.result += t; if(sos) $("flashSos").classList.add("show"); renderFlash(); },
+  onToken: (tok)=>{ $("flashSub").innerHTML = tok ? "記録中の符号: <b>" + tok + "</b>" : ""; }
+});
+function renderFlash(){ $("flashResult").textContent = state.flash.result; }
+segWire("flashModeSeg", m=>{ state.flash.mode = m; });
+$("flashUnit").addEventListener("input", e=>{
+  flashUnit = Number(e.target.value);
+  $("flashUnitVal").textContent = flashUnit + "ms ≒ " + Math.round(1200/flashUnit) + " WPM";
+});
+(function(){
+  const key = $("flashKey");
+  key.addEventListener("pointerdown", e=>{ e.preventDefault(); key.classList.add("on"); flashTap.down(); });
+  const release = ()=>{ if(!key.classList.contains("on")) return; key.classList.remove("on"); flashTap.up(); };
+  key.addEventListener("pointerup", release); key.addEventListener("pointerleave", release); key.addEventListener("pointercancel", release);
+})();
+$("flashBack").addEventListener("click", ()=>{ state.flash.result = state.flash.result.slice(0,-1); renderFlash(); });
+$("flashClear").addEventListener("click", ()=>{ state.flash.result=""; $("flashSos").classList.remove("show"); flashTap.reset(); renderFlash(); });
+$("flashCopy").addEventListener("click", e=>copyText(state.flash.result, e.target));
+$("flashWpm").addEventListener("input", e=>{ $("flashWpmVal").textContent = e.target.value + " WPM"; });
+let flashStopFlag = false;
+$("flashSendBtn").addEventListener("click", async ()=>{
+  const text = $("flashSendIn").value; if(!text) return;
+  const code = encodeMorseText(text, state.flash.mode);
+  const unit = 1200 / Number($("flashWpm").value);
+  const overlay = $("flashOverlay"), lamp = $("flashLamp"), prog = $("flashProgress");
+  overlay.classList.add("show"); flashStopFlag = false;
+  const sleep = ms => new Promise(r=>setTimeout(r, ms));
+  const words = code.split(" / ");
+  outer:
+  for(let wi=0; wi<words.length; wi++){
+    const toks = words[wi].split(" ");
+    for(let ti=0; ti<toks.length; ti++){
+      prog.textContent = "送信中: " + toks[ti];
+      for(const s of toks[ti]){
+        if(flashStopFlag) break outer;
+        lamp.classList.add("on"); await sleep(s === "." ? unit : unit*3);
+        lamp.classList.remove("on"); await sleep(unit);
+        if(flashStopFlag) break outer;
+      }
+      await sleep(unit*2);
+    }
+    await sleep(unit*4);
+  }
+  lamp.classList.remove("on"); overlay.classList.remove("show");
+  if(!flashStopFlag) histAdd("発光送信", text);
+});
+$("flashStopBtn").addEventListener("click", ()=>{ flashStopFlag = true; $("flashLamp").classList.remove("on"); $("flashOverlay").classList.remove("show"); });
+</script>
+
+<script id="ui2">
+"use strict";
+/* ---------- Semaphore UI ---------- */
+const SEM_POS_ORDER = [4,5,6,7,0,1,2,3]; // for pad layout around circle (top start, clockwise)
+function buildPad(el, side){
+  SEM_POS_ORDER.forEach(p=>{
+    const v = SEM_VECTORS[p];
+    const btn = document.createElement("button");
+    btn.textContent = SEM_LABELS[p];
+    btn.style.left = (50 + v[0]*36) + "%";
+    btn.style.top = (50 + v[1]*36) + "%";
+    btn.dataset.pos = p; btn.dataset.side = side;
+    btn.addEventListener("click", ()=>{
+      if(side === "L") state.sem.left = p; else state.sem.right = p;
+      renderSem();
+    });
+    el.appendChild(btn);
+  });
+  const c = document.createElement("div"); c.className="center"; c.textContent = "🧍"; el.appendChild(c);
+}
+buildPad($("semPadL"), "L"); buildPad($("semPadR"), "R");
+function semCurrent(){
+  return decodeSemaphorePair(state.sem.left, state.sem.right, state.sem.numeric, $("semMirror").checked);
+}
+function renderSem(){
+  document.querySelectorAll("#semPadL button").forEach(b=>b.classList.toggle("sel", Number(b.dataset.pos) === state.sem.left));
+  document.querySelectorAll("#semPadR button").forEach(b=>b.classList.toggle("sel", Number(b.dataset.pos) === state.sem.right));
+  const cur = semCurrent();
+  $("semSub").innerHTML = "現在の組み合わせ: <b>" + (cur.display || cur.char || "？") + "</b>" + (cur.kind==="unknown" ? "（対応なし）" : "");
+  $("semModeState").textContent = "現在: " + (state.sem.numeric ? "数字モード" : "文字モード");
+  $("semResult").textContent = state.sem.result;
+  // figure
+  const svg = $("semFigure"), NS = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+  const mk = (tag, attrs)=>{ const e=document.createElementNS(NS, tag); Object.keys(attrs).forEach(k=>e.setAttribute(k, attrs[k])); svg.appendChild(e); return e; };
+  mk("circle", {cx:85, cy:62, r:13, fill:"#ffb020"});
+  mk("line", {x1:85, y1:75, x2:85, y2:118, stroke:"#f2f6fb", "stroke-width":6, "stroke-linecap":"round"});
+  mk("line", {x1:85, y1:118, x2:68, y2:152, stroke:"#f2f6fb", "stroke-width":6, "stroke-linecap":"round"});
+  mk("line", {x1:85, y1:118, x2:102, y2:152, stroke:"#f2f6fb", "stroke-width":6, "stroke-linecap":"round"});
+  [["L", state.sem.left, "#ff5a5a"], ["R", state.sem.right, "#ffffff"]].forEach(([side, pos, color])=>{
+    let p = pos; if($("semMirror").checked) p = semMirrorPos(p);
+    const v = SEM_VECTORS[p];
+    const x2 = 85 + v[0]*52, y2 = 88 + v[1]*52;
+    mk("line", {x1:85, y1:88, x2:x2, y2:y2, stroke: color, "stroke-width":5, "stroke-linecap":"round"});
+    mk("rect", {x:x2-8, y:y2-8, width:16, height:16, fill: color, stroke:"#0d1b2e"});
+  });
+}
+$("semMirror").addEventListener("change", renderSem);
+$("semConfirm").addEventListener("click", ()=>{
+  const cur = semCurrent();
+  if(cur.kind === "space") state.sem.result += " ";
+  else if(cur.char) state.sem.result += cur.char;
+  state.sem.numeric = cur.nextNumeric;
+  renderSem();
+  if(cur.kind === "letter" || cur.kind === "digit") histAdd("手旗・欧文", state.sem.result);
+});
+$("semSpace").addEventListener("click", ()=>{ state.sem.left = 0; state.sem.right = 0; renderSem(); $("semConfirm").click(); });
+$("semBack").addEventListener("click", ()=>{ state.sem.result = state.sem.result.slice(0,-1); renderSem(); });
+$("semClear").addEventListener("click", ()=>{ state.sem.result=""; state.sem.numeric=false; renderSem(); });
+$("semCopy").addEventListener("click", e=>copyText(state.sem.result, e.target));
+$("semEncodeBtn").addEventListener("click", ()=>{
+  const txt = $("semEncodeIn").value.toUpperCase(), out = [];
+  for(const ch of txt){
+    if(ch === " "){ out.push("（空白）"); continue; }
+    const pair = semaphorePairForChar(ch);
+    out.push(pair ? ch + "[" + SEM_LABELS[pair[0]] + "＋" + SEM_LABELS[pair[1]] + "]" : ch + "[対応なし]");
+  }
+  $("semEncodeOut").textContent = out.join(" ");
+});
+renderSem();
+
+/* ---------- Tebata UI ---------- */
+const GENGA_ORDER = ["0","1","2","2R","3","4","5","6","7","8","9","10","11","12","13","14"];
+(function(){
+  const wrap = $("tebGenga");
+  GENGA_ORDER.forEach(g=>{
+    const info = DATA.tebata.genga[g];
+    const btn = document.createElement("button");
+    btn.innerHTML = g.replace("2R","逆2") + "<small>" + (info ? info.label : "") + "</small>";
+    btn.addEventListener("click", ()=>{ state.teb.seq.push(g); renderTeb(); });
+    wrap.appendChild(btn);
+  });
+})();
+function renderTeb(){
+  $("tebSeq").innerHTML = "入力中: " + (state.teb.seq.length ? "<b>" + state.teb.seq.join(" → ") + "</b>" : "（なし）");
+  const cand = state.teb.seq.length ? tebataCandidates(state.teb.seq) : [];
+  const dec = state.teb.seq.length ? tebataDecode(state.teb.seq) : null;
+  let msg = "";
+  if(dec && dec.kind === "kana") msg = "確定できます: <b>" + dec.char + "</b>";
+  else if(dec && dec.kind === "mark") msg = "確定すると直前の文字に" + (dec.mark === "dakuten" ? "濁点" : "半濁点") + "が付きます";
+  else if(state.teb.seq.length) msg = "候補: " + (cand.length ? cand.join("・") : "なし（この組み合わせの文字はありません）");
+  $("tebCand").innerHTML = msg;
+  $("tebResult").textContent = state.teb.result;
+}
+$("tebUndo").addEventListener("click", ()=>{ state.teb.seq.pop(); renderTeb(); });
+$("tebConfirm").addEventListener("click", ()=>{
+  if(!state.teb.seq.length) return;
+  if($("tebNumMode").checked && state.teb.seq.length === 1 && /^[0-9]$/.test(state.teb.seq[0])){
+    state.teb.result += state.teb.seq[0];
+  } else {
+    const dec = tebataDecode(state.teb.seq);
+    if(dec.kind === "kana") state.teb.result += dec.char;
+    else if(dec.kind === "mark"){
+      const prev = state.teb.result.slice(-1);
+      const map = dec.mark === "dakuten" ? DAKUTEN_MAP : HANDAKUTEN_MAP;
+      if(prev && map[prev]) state.teb.result = state.teb.result.slice(0,-1) + map[prev];
+    } else state.teb.result += "？";
+  }
+  state.teb.seq = []; renderTeb(); histAdd("手旗・和文", state.teb.result);
+});
+$("tebBack").addEventListener("click", ()=>{ state.teb.result = state.teb.result.slice(0,-1); renderTeb(); });
+$("tebClear").addEventListener("click", ()=>{ state.teb.result=""; state.teb.seq=[]; renderTeb(); });
+$("tebCopy").addEventListener("click", e=>copyText(state.teb.result, e.target));
+$("tebEncodeBtn").addEventListener("click", ()=>{ $("tebEncodeOut").textContent = tebataEncode($("tebEncodeIn").value); });
+renderTeb();
+
+/* ---------- Tables ---------- */
+let tablesRendered = false;
+function renderTables(){
+  const q = ($("tblSearch").value || "").trim().toUpperCase();
+  const body = $("tblBody"); body.innerHTML = "";
+  const addSection = (title, cells)=>{
+    const h = document.createElement("h3"); h.textContent = title; h.style.margin = "14px 0 6px"; body.appendChild(h);
+    const g = document.createElement("div"); g.className = "grid";
+    cells.forEach(([big, small])=>{
+      if(q && !(big.toUpperCase().includes(q) || small.toUpperCase().includes(q))) return;
+      const d = document.createElement("div"); d.className="cell";
+      d.innerHTML = ""; const b=document.createElement("b"); b.textContent=big; d.appendChild(b);
+      d.appendChild(document.createElement("br")); d.appendChild(document.createTextNode(small));
+      g.appendChild(d);
+    });
+    body.appendChild(g);
+  };
+  addSection("欧文モールス", Object.keys(DATA.morseIntl.letters).map(k=>[k, DATA.morseIntl.letters[k].replace(/-/g,"ー").replace(/\./g,"・")])
+    .concat(Object.keys(DATA.morseIntl.numbers).map(k=>[k, DATA.morseIntl.numbers[k].replace(/-/g,"ー").replace(/\./g,"・")])));
+  addSection("和文モールス", Object.keys(DATA.morseWabun.kana).map(k=>[k, DATA.morseWabun.kana[k].replace(/-/g,"ー").replace(/\./g,"・")]));
+  addSection("手旗・欧文（セマフォア）", Object.keys(DATA.semaphore.pairs).map(k=>{
+    const [a,b] = k.split("-").map(Number); return [DATA.semaphore.pairs[k], SEM_LABELS[a] + "＋" + SEM_LABELS[b]];
+  }));
+  addSection("手旗・和文（原画）", Object.keys(DATA.tebata.kana_sequences).map(k=>[k, DATA.tebata.kana_sequences[k].join("→")]));
+  tablesRendered = true;
+}
+$("tblSearch").addEventListener("input", renderTables);
+
+/* service worker */
+if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
+histRender();
+</script>
+</body>
+</html>
